@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Railway Project Control Board</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f7f7f5;
+      --surface: #ffffff;
+      --surface-soft: #f1f1ee;
+      --text: #171717;
+      --muted: #6d6d68;
+      --line: #d8d8d2;
+      --accent: #171717;
+      --accent-text: #ffffff;
+      --shadow: 0 10px 30px rgba(0, 0, 0, .06);
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #141414;
+      --surface: #202020;
+      --surface-soft: #292929;
+      --text: #f5f5f1;
+      --muted: #b2b2aa;
+      --line: #42423e;
+      --accent: #f5f5f1;
+      --accent-text: #171717;
+      --shadow: 0 10px 30px rgba(0, 0, 0, .22);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--page);
+      color: var(--text);
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    .page { max-width: 1550px; margin: 0 auto; padding: 32px clamp(18px, 4vw, 64px) 52px; }
+    .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-bottom: 30px; border-bottom: 1px solid var(--line); }
+    .eyebrow { margin: 0 0 6px; color: var(--muted); font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(1.75rem, 3vw, 2.7rem); line-height: 1.15; letter-spacing: -.04em; }
+    .subtitle { max-width: 680px; margin: 11px 0 0; color: var(--muted); }
+    .theme-toggle, .button-secondary, .button-primary, .add-column-card, .move-button, .icon-button {
+      border: 1px solid var(--line); border-radius: 7px; transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    }
+    .theme-toggle, .button-secondary { padding: 10px 13px; color: var(--text); background: transparent; white-space: nowrap; }
+    .theme-toggle:hover, .button-secondary:hover, .icon-button:hover { background: var(--surface-soft); }
+    .theme-toggle:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid #777; outline-offset: 3px; }
+    .actions { display: flex; gap: 10px; margin: 25px 0 22px; }
+    .button-primary { padding: 11px 16px; background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 700; }
+    .button-primary:hover { opacity: .85; }
+    .board { display: grid; grid-template-columns: repeat(4, minmax(230px, 1fr)); gap: 16px; align-items: start; overflow-x: auto; padding: 3px 2px 16px; }
+    .column { min-height: 390px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+    .column-header { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+    .column-title { margin: 0; font-size: 1rem; letter-spacing: -.01em; }
+    .count { display: grid; width: 26px; height: 26px; place-items: center; flex: 0 0 auto; background: var(--surface-soft); border-radius: 50%; color: var(--muted); font-size: .78rem; font-weight: 700; }
+    .card-list { min-height: 244px; padding: 14px 0 4px; }
+    .card-list.drag-over { border-radius: 6px; outline: 2px dashed var(--text); outline-offset: 3px; }
+    .task-card { margin-bottom: 11px; padding: 14px; background: var(--surface-soft); border: 1px solid transparent; border-radius: 7px; box-shadow: 0 2px 7px rgba(0,0,0,.03); }
+    .task-card[draggable="true"] { cursor: grab; }
+    .task-card.dragging { opacity: .45; }
+    .task-card:hover { border-color: var(--line); }
+    .task-card h3 { margin: 0; font-size: 1rem; line-height: 1.35; overflow-wrap: anywhere; }
+    .task-card p { margin: 7px 0 0; color: var(--muted); font-size: .88rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .card-actions { display: flex; align-items: center; gap: 7px; margin-top: 14px; }
+    .icon-button { width: 33px; height: 33px; padding: 0; color: var(--text); background: transparent; font-size: .9rem; }
+    .move-actions { display: none; gap: 8px; margin-left: auto; }
+    .move-button { min-width: 42px; min-height: 42px; padding: 0 11px; color: var(--text); background: var(--surface); font-weight: 700; }
+    .move-button:disabled { visibility: hidden; }
+    .empty { margin: 13px 0 0; color: var(--muted); font-size: .87rem; }
+    .add-column-card { width: 100%; padding: 10px; background: transparent; color: var(--muted); border-style: dashed; }
+    .add-column-card:hover { color: var(--text); background: var(--surface-soft); }
+    dialog { width: min(520px, calc(100% - 30px)); padding: 0; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 22px 70px rgba(0,0,0,.3); }
+    dialog::backdrop { background: rgba(0, 0, 0, .45); }
+    .dialog-content { padding: 25px; }
+    .dialog-content h2 { margin: 0 0 21px; font-size: 1.35rem; }
+    .field { display: grid; gap: 7px; margin-bottom: 16px; }
+    .field label { font-size: .88rem; font-weight: 700; }
+    .field input, .field textarea, .field select { width: 100%; padding: 10px 11px; color: var(--text); background: var(--page); border: 1px solid var(--line); border-radius: 6px; }
+    .field textarea { min-height: 108px; resize: vertical; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 24px; }
+    .dialog-actions .button-secondary, .dialog-actions .button-primary { padding: 10px 14px; }
+    @media (max-width: 760px) {
+      .page { padding-top: 21px; }
+      .topbar { gap: 14px; }
+      .topbar h1 { font-size: 1.7rem; }
+      .theme-toggle { padding: 9px 10px; font-size: .84rem; }
+      .board { display: flex; gap: 13px; scroll-snap-type: x mandatory; padding-bottom: 18px; }
+      .column { width: min(88vw, 390px); min-width: min(88vw, 390px); scroll-snap-align: start; }
+      .move-actions { display: flex; }
+      .task-card { padding: 15px; }
+      .icon-button { width: 40px; height: 40px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Personal work board</p>
+        <h1>กระดานควบคุมโครงการระบบราง</h1>
+        <p class="subtitle">ติดตามงานโครงการ ตั้งแต่ข้อกำหนดและการประสานงาน จนถึงการตรวจรับและปิดงาน</p>
+      </div>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="สลับโหมดสี">โหมดมืด</button>
+    </header>
+
+    <section class="actions" aria-label="จัดการงาน">
+      <button class="button-primary" id="newTaskButton" type="button">+ เพิ่มงาน</button>
+    </section>
+
+    <section class="board" id="board" aria-label="กระดานงานโครงการระบบราง"></section>
+  </main>
+
+  <dialog id="taskDialog" aria-labelledby="dialogTitle">
+    <form class="dialog-content" id="taskForm" method="dialog">
+      <h2 id="dialogTitle">เพิ่มงานใหม่</h2>
+      <div class="field">
+        <label for="taskTitle">ชื่องาน</label>
+        <input id="taskTitle" name="title" required maxlength="120" autocomplete="off" placeholder="เช่น ทบทวนแบบระบบสื่อสาร">
+      </div>
+      <div class="field">
+        <label for="taskDescription">รายละเอียด (ถ้ามี)</label>
+        <textarea id="taskDescription" name="description" maxlength="600" placeholder="ผู้รับผิดชอบ, วันนัด, หรือสิ่งที่ต้องติดตาม"></textarea>
+      </div>
+      <div class="field">
+        <label for="taskColumn">สถานะงาน</label>
+        <select id="taskColumn" name="column"></select>
+      </div>
+      <div class="dialog-actions">
+        <button class="button-secondary" id="cancelDialog" type="button">ยกเลิก</button>
+        <button class="button-primary" type="submit">บันทึกงาน</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = 'railway-project-board-v1';
+      const THEME_KEY = 'railway-project-theme-v1';
+
+      // แก้ชื่อคอลัมน์ตรงนี้ได้เลย เพื่อให้ตรงกับขั้นตอนงานของคุณ
+      const columns = [
+        { id: 'requirements', title: 'ข้อกำหนดและแผน' },
+        { id: 'coordination', title: 'รอประสาน / อนุมัติ' },
+        { id: 'execution', title: 'กำลังดำเนินการ' },
+        { id: 'acceptance', title: 'ตรวจรับและปิดงาน' }
+      ];
+
+      const board = document.getElementById('board');
+      const dialog = document.getElementById('taskDialog');
+      const form = document.getElementById('taskForm');
+      const titleInput = document.getElementById('taskTitle');
+      const descriptionInput = document.getElementById('taskDescription');
+      const columnInput = document.getElementById('taskColumn');
+      const dialogTitle = document.getElementById('dialogTitle');
+      const themeToggle = document.getElementById('themeToggle');
+      let editingId = null;
+
+      const loadTasks = () => {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          return Array.isArray(saved) ? saved : [];
+        } catch { return []; }
+      };
+      let tasks = loadTasks();
+
+      const saveTasks = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
+      const id = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+      function render() {
+        board.innerHTML = columns.map((column, index) => {
+          const columnTasks = tasks.filter(task => task.column === column.id);
+          return `<section class="column" data-column="${column.id}">
+            <header class="column-header"><h2 class="column-title">${column.title}</h2><span class="count" aria-label="${columnTasks.length} งาน">${columnTasks.length}</span></header>
+            <div class="card-list" data-column="${column.id}">
+              ${columnTasks.map(task => taskTemplate(task, index)).join('') || '<p class="empty">ยังไม่มีงานในขั้นตอนนี้</p>'}
+            </div>
+            <button class="add-column-card" type="button" data-add-column="${column.id}">+ เพิ่มงานในคอลัมน์นี้</button>
+          </section>`;
+        }).join('');
+        attachBoardEvents();
+      }
+
+      function taskTemplate(task, columnIndex) {
+        const description = task.description ? `<p>${escapeHtml(task.description)}</p>` : '';
+        return `<article class="task-card" draggable="true" data-task-id="${task.id}">
+          <h3>${escapeHtml(task.title)}</h3>${description}
+          <div class="card-actions">
+            <button class="icon-button" type="button" data-edit="${task.id}" aria-label="แก้ไขงาน ${escapeHtml(task.title)}">แก้</button>
+            <button class="icon-button" type="button" data-delete="${task.id}" aria-label="ลบงาน ${escapeHtml(task.title)}">ลบ</button>
+            <div class="move-actions" aria-label="ย้ายงาน">
+              <button class="move-button" type="button" data-move="left" data-task="${task.id}" ${columnIndex === 0 ? 'disabled' : ''} aria-label="ย้ายไปขั้นตอนก่อนหน้า">←</button>
+              <button class="move-button" type="button" data-move="right" data-task="${task.id}" ${columnIndex === columns.length - 1 ? 'disabled' : ''} aria-label="ย้ายไปขั้นตอนถัดไป">→</button>
+            </div>
+          </div>
+        </article>`;
+      }
+
+      function attachBoardEvents() {
+        board.querySelectorAll('[data-add-column]').forEach(button => button.addEventListener('click', () => openDialog(null, button.dataset.addColumn)));
+        board.querySelectorAll('[data-edit]').forEach(button => button.addEventListener('click', () => openDialog(button.dataset.edit)));
+        board.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', () => deleteTask(button.dataset.delete)));
+        board.querySelectorAll('[data-move]').forEach(button => button.addEventListener('click', () => moveTask(button.dataset.task, button.dataset.move)));
+        board.querySelectorAll('.task-card').forEach(card => {
+          card.addEventListener('dragstart', event => { card.classList.add('dragging'); event.dataTransfer.setData('text/plain', card.dataset.taskId); event.dataTransfer.effectAllowed = 'move'; });
+          card.addEventListener('dragend', () => card.classList.remove('dragging'));
+        });
+        board.querySelectorAll('.card-list').forEach(list => {
+          list.addEventListener('dragover', event => { event.preventDefault(); list.classList.add('drag-over'); event.dataTransfer.dropEffect = 'move'; });
+          list.addEventListener('dragleave', () => list.classList.remove('drag-over'));
+          list.addEventListener('drop', event => { event.preventDefault(); list.classList.remove('drag-over'); moveToColumn(event.dataTransfer.getData('text/plain'), list.dataset.column); });
+        });
+      }
+
+      function openDialog(taskId = null, defaultColumn = columns[0].id) {
+        editingId = taskId;
+        columnInput.innerHTML = columns.map(column => `<option value="${column.id}">${column.title}</option>`).join('');
+        const task = taskId ? tasks.find(item => item.id === taskId) : null;
+        dialogTitle.textContent = task ? 'แก้ไขงาน' : 'เพิ่มงานใหม่';
+        titleInput.value = task?.title || '';
+        descriptionInput.value = task?.description || '';
+        columnInput.value = task?.column || defaultColumn;
+        dialog.showModal();
+        titleInput.focus();
+      }
+
+      function deleteTask(taskId) {
+        const task = tasks.find(item => item.id === taskId);
+        if (task && confirm(`ลบงาน “${task.title}” ใช่หรือไม่?\nการลบนี้กู้คืนไม่ได้`)) {
+          tasks = tasks.filter(item => item.id !== taskId);
+          saveTasks(); render();
+        }
+      }
+
+      function moveToColumn(taskId, columnId) {
+        const task = tasks.find(item => item.id === taskId);
+        if (task && columns.some(column => column.id === columnId) && task.column !== columnId) {
+          task.column = columnId; saveTasks(); render();
+        }
+      }
+
+      function moveTask(taskId, direction) {
+        const task = tasks.find(item => item.id === taskId);
+        if (!task) return;
+        const current = columns.findIndex(column => column.id === task.column);
+        const next = direction === 'left' ? current - 1 : current + 1;
+        if (columns[next]) moveToColumn(taskId, columns[next].id);
+      }
+
+      document.getElementById('newTaskButton').addEventListener('click', () => openDialog());
+      document.getElementById('cancelDialog').addEventListener('click', () => dialog.close());
+      form.addEventListener('submit', event => {
+        event.preventDefault();
+        const title = titleInput.value.trim();
+        if (!title) return;
+        const data = { title, description: descriptionInput.value.trim(), column: columnInput.value };
+        if (editingId) Object.assign(tasks.find(item => item.id === editingId), data);
+        else tasks.push({ id: id(), ...data });
+        saveTasks(); dialog.close(); render();
+      });
+
+      function setTheme(theme) {
+        document.documentElement.dataset.theme = theme;
+        themeToggle.textContent = theme === 'dark' ? 'โหมดสว่าง' : 'โหมดมืด';
+      }
+      const savedTheme = localStorage.getItem(THEME_KEY);
+      setTheme(savedTheme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+      themeToggle.addEventListener('click', () => {
+        const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem(THEME_KEY, next); setTheme(next);
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>
